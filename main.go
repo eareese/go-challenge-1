@@ -8,7 +8,13 @@ import (
 )
 
 func main() {
-	f, err := os.Open(path.Join("fixtures", "pattern_1.splice"))
+	hexdump(path.Join("fixtures", "pattern_5.splice"))
+}
+
+// hexdump scans the given file and dumps the contents to Stdout.
+func hexdump(fpath string) {
+	f, err := os.Open(fpath)
+	defer f.Close()
 	if err != nil {
 		panic(err)
 	}
@@ -20,8 +26,6 @@ func main() {
 	for scanner.Scan() {
 		stdoutDumper.Write([]byte(scanner.Text()))
 	}
-
-	f.Close()
 }
 
 // DecodeFile decodes the drum machine files.

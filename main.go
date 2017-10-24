@@ -7,6 +7,11 @@ import (
 	"path"
 )
 
+// Pattern has the details of decoded drum machine patterns.
+type Pattern struct {
+	version string
+}
+
 func main() {
 	hexdump(path.Join("fixtures", "pattern_5.splice"))
 }
@@ -29,6 +34,6 @@ func hexdump(fpath string) {
 }
 
 // DecodeFile decodes the drum machine files.
-func DecodeFile(path string) (string, error) {
-	return "", nil
+func DecodeFile(path string) (*Pattern, error) {
+	return &Pattern{}, nil
 }

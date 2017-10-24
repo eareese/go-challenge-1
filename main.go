@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path"
 )
@@ -10,6 +11,10 @@ import (
 // Pattern has the details of decoded drum machine patterns.
 type Pattern struct {
 	version string
+}
+
+func (p *Pattern) String() string {
+	return fmt.Sprintf("Saved with HW Version: %s\n", p.version)
 }
 
 func main() {

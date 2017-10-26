@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -17,6 +18,7 @@ type Pattern struct {
 	tempo   float32
 }
 
+// Pattern printer template
 func (p *Pattern) String() string {
 	return fmt.Sprintf(`Saved with HW Version: %s
 Tempo: %v
@@ -37,7 +39,7 @@ func hexdump(fpath string) {
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		stdoutDumper.Write([]byte(scanner.Text()))
+		stdoutDumper.Write(scanner.Bytes())
 	}
 }
 
@@ -51,12 +53,20 @@ func DecodeFile(fpath string) (*Pattern, error) {
 	contents, err := ioutil.ReadFile(fpath)
 	check(err)
 
-	// spliceInfo := string(contents[:6])
+	// Check for the SPLICE header that starts each drum
+	if headerInfo := string(contents[:6]); headerInfo != "SPLICE" {
+		return &p, errors.New("SPLICE header not found")
+	}
+
+	// Find version and get as string
 	version := strings.Trim(string(contents[14:27]), "\x00")
 	p.version = version
 
+	// Get tempo and decode it
 	tempo := math.Float32frombits(binary.LittleEndian.Uint32(contents[46:50]))
 	p.tempo = tempo
+
+	// TODO: decode tracks info
 
 	return &p, nil
 }

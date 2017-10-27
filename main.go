@@ -14,15 +14,17 @@ import (
 
 // Pattern has the details of decoded drum machine patterns.
 type Pattern struct {
-	version string
-	tempo   float32
+	version   string
+	tempo     float32
+	kickTrack string
 }
 
 // Pattern printer template
 func (p *Pattern) String() string {
 	return fmt.Sprintf(`Saved with HW Version: %s
 Tempo: %v
-`, p.version, p.tempo)
+%v
+`, p.version, p.tempo, p.kickTrack)
 }
 
 func main() {
@@ -66,7 +68,33 @@ func DecodeFile(fpath string) (*Pattern, error) {
 	tempo := math.Float32frombits(binary.LittleEndian.Uint32(contents[46:50]))
 	p.tempo = tempo
 
-	// TODO: decode tracks info
+	// Collect info about tracks:
+
+	// Parse out all track info for the kick drum track in a naive way.
+	kick := contents[50:79]
+	var kickDisplay = "("
+
+	kickHeader := kick[4:9]
+	if string(kickHeader) != "\x04kick" {
+		return &p, errors.New("can't handle kick")
+	}
+
+	kickID := binary.LittleEndian.Uint32(kick[0:4])
+
+	kickDisplay += fmt.Sprintf("%v) kick\t|", kickID)
+
+	kickPattern := kick[9:25]
+	for i, x := range kickPattern {
+		if x == 1 {
+			kickDisplay += "x"
+		} else if x == 0 {
+			kickDisplay += "-"
+		}
+		if (i+1)%4 == 0 {
+			kickDisplay += "|"
+		}
+	}
+	p.kickTrack = kickDisplay
 
 	return &p, nil
 }

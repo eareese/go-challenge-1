@@ -14,9 +14,9 @@ import (
 
 // Pattern has the details of decoded drum machine patterns.
 type Pattern struct {
-	version   string
-	tempo     float32
-	kickTrack string
+	version string
+	tempo   float32
+	tracks  []string
 }
 
 // Pattern printer template
@@ -24,7 +24,7 @@ func (p *Pattern) String() string {
 	return fmt.Sprintf(`Saved with HW Version: %s
 Tempo: %v
 %v
-`, p.version, p.tempo, p.kickTrack)
+`, p.version, p.tempo, p.tracks[0])
 }
 
 func main() {
@@ -69,34 +69,41 @@ func DecodeFile(fpath string) (*Pattern, error) {
 	p.tempo = tempo
 
 	// Collect info about tracks:
-
-	// Parse out all track info for the kick drum track in a naive way.
-	kick := contents[50:79]
-	var kickDisplay = "("
-
-	kickHeader := kick[4:9]
-	if string(kickHeader) != "\x04kick" {
-		return &p, errors.New("can't handle kick")
-	}
-
-	kickID := binary.LittleEndian.Uint32(kick[0:4])
-
-	kickDisplay += fmt.Sprintf("%v) kick\t|", kickID)
-
-	kickPattern := kick[9:25]
-	for i, x := range kickPattern {
-		if x == 1 {
-			kickDisplay += "x"
-		} else if x == 0 {
-			kickDisplay += "-"
-		}
-		if (i+1)%4 == 0 {
-			kickDisplay += "|"
-		}
-	}
-	p.kickTrack = kickDisplay
+	tracksInfo := contents[50:]
+	p.tracks = parseTracks(tracksInfo)
 
 	return &p, nil
+}
+
+// parseTrack reads track info (id, instrument, beat pattern) and formats it into strings like:
+// (0) cowbell    |-x-x|-x-x|-x-x|-x-x|
+func parseTracks(t []byte) []string {
+	tracks := make([]string, 0)
+	var trackDisplay = "("
+
+	trackID := t[0]
+	trackDisplay += fmt.Sprintf("%v) ", trackID)
+
+	instrumentNameLength := t[4]
+	instrumentNameEnd := 5 + instrumentNameLength
+	instrumentName := string(t[5:instrumentNameEnd])
+	trackDisplay += instrumentName
+	trackDisplay += "\t|"
+
+	trackPattern := t[instrumentNameEnd:(instrumentNameEnd + 16)]
+	for i, x := range trackPattern {
+		if x == 1 {
+			trackDisplay += "x"
+		} else if x == 0 {
+			trackDisplay += "-"
+		}
+		if (i+1)%4 == 0 {
+			trackDisplay += "|"
+		}
+	}
+	tracks = append(tracks, trackDisplay)
+
+	return tracks
 }
 
 func check(e error) {

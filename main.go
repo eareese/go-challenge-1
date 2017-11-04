@@ -21,10 +21,14 @@ type Pattern struct {
 
 // Pattern printer template
 func (p *Pattern) String() string {
-	return fmt.Sprintf(`Saved with HW Version: %s
-Tempo: %v
-%v
-`, p.version, p.tempo, p.tracks[0])
+	var printed string
+	printed += fmt.Sprintf("Saved with HW Version: %v\n", p.version)
+	printed += fmt.Sprintf("Tempo: %v\n", p.tempo)
+
+	for _, tr := range p.tracks {
+		printed += tr
+	}
+	return printed
 }
 
 func main() {
@@ -68,40 +72,94 @@ func DecodeFile(fpath string) (*Pattern, error) {
 	tempo := math.Float32frombits(binary.LittleEndian.Uint32(contents[46:50]))
 	p.tempo = tempo
 
-	// Collect info about tracks:
+	// Collect tracks info, exactly how depends on the file version
 	tracksInfo := contents[50:]
-	p.tracks = parseTracks(tracksInfo)
+	if version == "0.708-alpha" {
+		p.tracks = parseTracksWithStopHeader(tracksInfo)
+	} else {
+		p.tracks = parseTracks(tracksInfo)
+
+	}
 
 	return &p, nil
 }
 
-// parseTrack reads track info (id, instrument, beat pattern) and formats it into strings like:
+// parseTracks reads track info (id, instrument, beat pattern) and formats it into strings like:
 // (0) cowbell    |-x-x|-x-x|-x-x|-x-x|
 func parseTracks(t []byte) []string {
 	tracks := make([]string, 0)
-	var trackDisplay = "("
 
-	trackID := t[0]
-	trackDisplay += fmt.Sprintf("%v) ", trackID)
+	for len(t) > 0 {
 
-	instrumentNameLength := t[4]
-	instrumentNameEnd := 5 + instrumentNameLength
-	instrumentName := string(t[5:instrumentNameEnd])
-	trackDisplay += instrumentName
-	trackDisplay += "\t|"
+		var trackDisplay = "("
 
-	trackPattern := t[instrumentNameEnd:(instrumentNameEnd + 16)]
-	for i, x := range trackPattern {
-		if x == 1 {
-			trackDisplay += "x"
-		} else if x == 0 {
-			trackDisplay += "-"
+		trackID := t[0]
+		trackDisplay += fmt.Sprintf("%v) ", trackID)
+
+		instrumentNameLength := t[4]
+		instrumentNameEnd := 5 + instrumentNameLength
+		instrumentName := string(t[5:instrumentNameEnd])
+		trackDisplay += instrumentName
+		trackDisplay += "\t|"
+
+		trackPattern := t[instrumentNameEnd:(instrumentNameEnd + 16)]
+		for i, x := range trackPattern {
+			if x == 1 {
+				trackDisplay += "x"
+			} else if x == 0 {
+				trackDisplay += "-"
+			}
+			if (i+1)%4 == 0 {
+				trackDisplay += "|"
+			}
 		}
-		if (i+1)%4 == 0 {
-			trackDisplay += "|"
+		trackDisplay += "\n"
+		tracks = append(tracks, trackDisplay)
+		t = t[(instrumentNameEnd + 16):]
+	}
+
+	return tracks
+}
+
+// parseTrackWithStopHeader does the same work as parseTracks, but for an earlier encoding version.
+func parseTracksWithStopHeader(t []byte) []string {
+	tracks := make([]string, 0)
+
+	for len(t) > 0 {
+
+		var trackDisplay = "("
+
+		trackID := t[0]
+		trackDisplay += fmt.Sprintf("%v) ", trackID)
+
+		instrumentNameLength := t[4]
+		instrumentNameEnd := 5 + instrumentNameLength
+		instrumentName := string(t[5:instrumentNameEnd])
+		trackDisplay += instrumentName
+		trackDisplay += "\t|"
+
+		trackPattern := t[instrumentNameEnd:(instrumentNameEnd + 16)]
+		for i, x := range trackPattern {
+			if x == 1 {
+				trackDisplay += "x"
+			} else if x == 0 {
+				trackDisplay += "-"
+			}
+			if (i+1)%4 == 0 {
+				trackDisplay += "|"
+			}
+		}
+		trackDisplay += "\n"
+		tracks = append(tracks, trackDisplay)
+
+		potentialSpliceHeader := string(t[(instrumentNameEnd + 16):(instrumentNameEnd + 16 + 6)])
+		if potentialSpliceHeader == "SPLICE" {
+			t = make([]byte, 0)
+		} else {
+
+			t = t[(instrumentNameEnd + 16):]
 		}
 	}
-	tracks = append(tracks, trackDisplay)
 
 	return tracks
 }

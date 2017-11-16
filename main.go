@@ -19,12 +19,10 @@ type Pattern struct {
 	tracks  []string
 }
 
-// Pattern printer template
+// String printer for Patterns
 func (p *Pattern) String() string {
-	var printed string
-	printed += fmt.Sprintf("Saved with HW Version: %v\n", p.version)
+	printed := fmt.Sprintf("Saved with HW Version: %v\n", p.version)
 	printed += fmt.Sprintf("Tempo: %v\n", p.tempo)
-
 	for _, tr := range p.tracks {
 		printed += tr
 	}
@@ -78,7 +76,6 @@ func DecodeFile(fpath string) (*Pattern, error) {
 		p.tracks = parseTracksWithStopHeader(tracksInfo)
 	} else {
 		p.tracks = parseTracks(tracksInfo)
-
 	}
 
 	return &p, nil
@@ -156,7 +153,6 @@ func parseTracksWithStopHeader(t []byte) []string {
 		if potentialSpliceHeader == "SPLICE" {
 			t = make([]byte, 0)
 		} else {
-
 			t = t[(instrumentNameEnd + 16):]
 		}
 	}
